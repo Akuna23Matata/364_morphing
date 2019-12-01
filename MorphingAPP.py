@@ -13,26 +13,32 @@ class MorphingAPP(QMainWindow, Ui_MainWindow):
         self.blendImg.setEnabled(False)
         self.horizontalSlider.setEnabled(False)
         self.textEdit.setEnabled(False)
-        self.pushButton.clicked.connect(self.loadData())
+        self.pushButton_3.setEnabled(False)
+        self.initstate()
 
-    def loadData(self):
-        """
-        *** DO NOT MODIFY THIS METHOD! ***
-        Obtain a file name from a file dialog, and pass it on to the loading method. This is to facilitate automated
-        testing. Invoke this method when clicking on the 'load' button.
+    def initstate(self):
+        self.pushButton.clicked.connect(self.loadLData)
+        self.pushButton_2.clicked.connect(self.loadRData)
 
-        You must modify the method below.
-        """
-        filePath, _ = QFileDialog.getOpenFileName(self, caption='Open XML file ...', filter="XML files (*.png)")
-
+    def loadRData(self):
+        filePath, _ = QFileDialog.getOpenFileName(self, caption='Open IMG file ...', filter="IMGs (*.png *.jpg)")
         if not filePath:
             return
+        self.rightPoint = filePath + ".txt"
+        self.loadDataFromFile(filePath, self.endImg)
 
-        self.loadDataFromFile(filePath)
 
-    def loadDataFromFile(self, filePath):
+    def loadLData(self):
+        filePath, _ = QFileDialog.getOpenFileName(self, caption='Open IMG file ...', filter="IMGs (*.png *.jpg)")
+        if not filePath:
+            return
+        self.leftPoint = filePath + ".txt"
+        self.loadDataFromFile(filePath, self.startImg)
+
+    def loadDataFromFile(self, filePath, which):
         pixmap = QPixmap(filePath)
-        self.startImg.setPixmap(pixmap)
+        which.setPixmap(pixmap)
+        which.setScaledContents(True)
 
 
 if __name__ == "__main__":
