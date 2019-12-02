@@ -1,5 +1,6 @@
 import sys
 
+from PIL.ImageQt import ImageQt
 from PyQt5.QtCore import QPointF
 from PyQt5.QtWidgets import QMainWindow, QApplication, QFileDialog
 from MorphingGUI import *
@@ -26,6 +27,13 @@ class MorphingAPP(QMainWindow, Ui_MainWindow):
     leftDot = None
     rightDot = None
     alpha = None
+    tmpLDot = None
+    tmpLDotPic = None
+    tmpRDot = None
+    tmpRDotPic = None
+    addLDot = list()
+    addRDot = list()
+    changed = True
 
     def __init__(self, parent=None):
         super(MorphingAPP, self).__init__(parent)
@@ -40,8 +48,76 @@ class MorphingAPP(QMainWindow, Ui_MainWindow):
         self.horizontalSlider.valueChanged.connect(self.getAlpha)
         self.textEdit.setReadOnly(True)
         self.pushButton_3.clicked.connect(self.blend)
-        self.resize(600, 400)
-        
+        self.startImg.mousePressEvent = self.getLDot
+        self.endImg.mousePressEvent = self.getRDot
+        self.mousePressEvent = self.savechange
+
+    def delLtmp(self, event):
+        if event.key() == QtCore.Qt.Key_Backspace:
+            self.tmpLDot = None
+            self.tmpLDotPic = None
+            self.startImg.setPixmap(self.leftDot)
+
+    def delRtmp(self, event):
+        if event.key() == QtCore.Qt.Key_Backspace:
+            self.tmpRDot = None
+            self.tmpRDotPic = None
+            self.endImg.setPixmap(self.rightDot)
+
+    def savechange(self, event):
+        if self.tmpRDot is None:
+            return
+        if self.tmpLDot is None:
+            return
+        self.addLDot.append(self.tmpLDot)
+        self.addRDot.append(self.tmpRDot)
+        self.tmpRDot = None
+        self.tmpLDot = None
+        self.loadDataFromFile(self.leftFile, self.startImg, self.leftPoint, None, self.addLDot)
+        self.loadDataFromFile(self.rightFile, self.endImg, self.rightPoint, None, self.addRDot)
+        self.updateDotFile()
+
+
+
+    def getLDot(self, event):
+        if self.tmpLDot is None:
+            x = event.pos().x() * float(self.leftDot.size().width()) / 251
+            y = event.pos().y() * float(self.leftDot.size().height()) / 221
+            self.tmpLDot = [x,y]
+            self.loadDataFromFile(self.leftFile, self.startImg, self.leftPoint, self.tmpLDot)
+            self.keyPressEvent = self.delLtmp
+        elif self.tmpRDot != None:
+            self.addLDot.append(self.tmpLDot)
+            self.addRDot.append(self.tmpRDot)
+            self.tmpRDot = None
+            x = event.pos().x() * float(self.leftDot.size().width()) / 251
+            y = event.pos().y() * float(self.leftDot.size().height()) / 221
+            self.tmpLDot = [x, y]
+            self.loadDataFromFile(self.leftFile, self.startImg, self.leftPoint, self.tmpLDot, self.addLDot)
+            self.loadDataFromFile(self.rightFile, self.endImg, self.rightPoint, None, self.addRDot)
+            self.updateDotFile()
+
+    def updateDotFile(self):
+        f = open(self.leftFile + ".txt", "w")
+        for n in self.leftPoint + self.addLDot:
+            f.write(str(round(n[0],1)) + "\t" + str(round(n[1], 1)) + "\n")
+        f.close()
+        f = open(self.rightFile + ".txt", "w")
+        for n in self.rightPoint + self.addRDot:
+            f.write(str(round(n[0], 1)) + "\t" + str(round(n[1], 1)) + "\n")
+        f.close()
+
+
+    def getRDot(self, event):
+        if self.tmpLDot is None:
+            return
+        if self.tmpRDot != None:
+            return
+        x = event.pos().x() * float(self.leftDot.size().width()) / 251
+        y = event.pos().y() * float(self.leftDot.size().height()) / 221
+        self.tmpRDot = (x,y)
+        self.loadDataFromFile(self.rightFile, self.endImg, self.rightPoint, self.tmpRDot, self.addRDot)
+        self.keyPressEvent = self.delRtmp
 
     def blend(self):
         left, right = Morphing.loadTriangles(self.leftFile + ".txt", self.rightFile + ".txt")
@@ -49,9 +125,11 @@ class MorphingAPP(QMainWindow, Ui_MainWindow):
         rightimg = np.asarray(Image.open(self.rightFile))
         m = Morphing.Morpher(leftimg, left, rightimg, right)
         pic = m.getImageAtAlpha(self.alpha)
-        pixmap = QPixmap.fromImage(pic)
-        self.blendImg.setPixmap(pixmap)
-
+        img = Image.fromarray(pic, 'L')
+        qim = ImageQt(img)
+        pix = QPixmap.fromImage(qim)
+        self.blendImg.setPixmap(pix)
+        self.blendImg.setScaledContents(True)
 
     def getAlpha(self):
         self.alpha = self.horizontalSlider.value() / 99
@@ -60,20 +138,26 @@ class MorphingAPP(QMainWindow, Ui_MainWindow):
 
     def trianglecheck(self):
         if self.checkBox.checkState():
-            self.showTri()
+            if self.leftPoint is None:
+                self.showTri("b-")
+            if self.addLDot != list():
+                self.showTri("y-")
+            self.showTri("r-")
         else:
             self.startImg.setPixmap(self.leftDot)
             self.endImg.setPixmap(self.rightDot)
 
-    def showTri(self):
-        leftPoints = np.array(self.leftPoint)
-        rightPoints = np.array(self.rightPoint)
-        if self.leftTri is None:
+    def showTri(self, color):
+        if not os.path.exists(self.leftFile + ".txt"):
+            return
+        leftPoints = np.array(self.leftPoint + self.addLDot)
+        rightPoints = np.array(self.rightPoint + self.addRDot)
+        if self.changed:
             temp = Delaunay(leftPoints)
             img = plt.imread(self.leftFile)
             fig, ax = plt.subplots()
             ax.imshow(img, cmap="gray")
-            plt.triplot(leftPoints[:, 0], leftPoints[:, 1], temp.simplices, "r-", linewidth=1)
+            plt.triplot(leftPoints[:, 0], leftPoints[:, 1], temp.simplices, color, linewidth=0.6)
             plt.plot(leftPoints[:, 0], leftPoints[:, 1], 'ro')
             plt.axis("off")
             buf = io.BytesIO()
@@ -84,12 +168,12 @@ class MorphingAPP(QMainWindow, Ui_MainWindow):
             buf.close()
         self.startImg.setPixmap(self.leftTri)
         self.startImg.setScaledContents(True)
-        if self.rightTri is None:
+        if self.changed:
             temp = Delaunay(rightPoints)
             img = plt.imread(self.rightFile)
             fig, ax = plt.subplots()
             ax.imshow(img, cmap="gray")
-            plt.triplot(rightPoints[:, 0], rightPoints[:, 1], temp.simplices, "r-", linewidth=1)
+            plt.triplot(rightPoints[:, 0], rightPoints[:, 1], temp.simplices, color, linewidth=1)
             plt.plot(rightPoints[:, 0], rightPoints[:, 1], 'ro')
             plt.axis("off")
             buf = io.BytesIO()
@@ -100,7 +184,6 @@ class MorphingAPP(QMainWindow, Ui_MainWindow):
             buf.close()
         self.endImg.setPixmap(self.rightTri)
         self.endImg.setScaledContents(True)
-
 
     def initstate(self):
         self.pushButton.clicked.connect(self.loadLData)
@@ -128,6 +211,8 @@ class MorphingAPP(QMainWindow, Ui_MainWindow):
                 self.rightPoint[i] = self.rightPoint[i].split()
                 self.rightPoint[i][0] = float(self.rightPoint[i][0])
                 self.rightPoint[i][1] = float(self.rightPoint[i][1])
+        else:
+            self.rightPoint = None
         self.loadDataFromFile(self.rightFile, self.endImg, self.rightPoint)
 
     def loadLData(self):
@@ -145,9 +230,11 @@ class MorphingAPP(QMainWindow, Ui_MainWindow):
                 self.leftPoint[i] = self.leftPoint[i].split()
                 self.leftPoint[i][0] = float(self.leftPoint[i][0])
                 self.leftPoint[i][1] = float(self.leftPoint[i][1])
+        else:
+            self.leftPoint = None
         self.loadDataFromFile(self.leftFile, self.startImg, self.leftPoint)
 
-    def loadDataFromFile(self, filePath, which, point):
+    def loadDataFromFile(self, filePath, which, point, tmpPoint = None, newPoint = None):
         pixmap = QPixmap(filePath)
         if point is not None:
             painter = QPainter(pixmap)
@@ -157,11 +244,29 @@ class MorphingAPP(QMainWindow, Ui_MainWindow):
             painter.setBrush(QtCore.Qt.red)
             for n in point:
                 painter.drawEllipse(QPointF(n[0], n[1]), 10, 10)
+            if tmpPoint != None:
+                painter.setPen(QPen(QtCore.Qt.green, 5))
+                painter.setBrush(QtCore.Qt.green)
+                painter.drawEllipse(QPointF(tmpPoint[0], tmpPoint[1]), 10, 10)
+                if point == self.leftPoint:
+                    self.tmpLDotPic = pixmap
+                else:
+                    self.tmpRDotPic = pixmap
+            if newPoint != None:
+                painter.setPen(QPen(QtCore.Qt.blue, 5))
+                painter.setBrush(QtCore.Qt.blue)
+                for n in newPoint:
+                    painter.drawEllipse(QPointF(n[0], n[1]), 10, 10)
+                if point == self.leftPoint:
+                    self.leftDot = pixmap
+                if point == self.rightPoint:
+                    self.rightDot = pixmap
             del painter
-        if point == self.leftPoint:
-            self.leftDot = pixmap
-        if point == self.rightPoint:
-            self.rightDot = pixmap
+        if (tmpPoint == None) & (newPoint == None):
+            if point == self.leftPoint:
+                self.leftDot = pixmap
+            if point == self.rightPoint:
+                self.rightDot = pixmap
         which.setPixmap(pixmap)
         which.setScaledContents(True)
         if self.Left & self.Right:
