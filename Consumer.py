@@ -98,10 +98,10 @@ class Consumer(QMainWindow, Ui_MainWindow):
         with open(filePath, "r") as nFile:
             text = nFile.read()
         #first find name and graduate
-        if(re.search(">.+?</StudentName>", text)):
+        if re.search(">.+?</StudentName>", text):
             name = re.findall(">.+?</StudentName>", text)[0][1:-14]
             self.txtStudentName.setText(name)
-        if(re.search(">.+?</StudentID>", text)):
+        if re.search(">.+?</StudentID>", text):
             sID = re.findall(">.+?</StudentID>", text)[0][1:-12]
             self.txtStudentID.setText(sID)
         college = re.findall(">.+?</College>", text)[0][1:-10]
