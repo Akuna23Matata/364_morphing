@@ -220,7 +220,7 @@ p, li { white-space: pre-wrap; }
      <string>Blend</string>
     </property>
    </widget>
-   <widget class="QLabel" name="startImg_2">
+   <widget class="QLabel" name="endImg">
     <property name="geometry">
      <rect>
       <x>400</x>
