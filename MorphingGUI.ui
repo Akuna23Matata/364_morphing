@@ -236,7 +236,7 @@ p, li { white-space: pre-wrap; }
      <string/>
     </property>
    </widget>
-   <widget class="QLabel" name="startImg_3">
+   <widget class="QLabel" name="blendImg">
     <property name="geometry">
      <rect>
       <x>230</x>
