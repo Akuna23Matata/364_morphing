@@ -18,8 +18,8 @@ import io
 class MorphingAPP(QMainWindow, Ui_MainWindow):
     Left = False
     Right = False
-    rightPoint = None
-    leftPoint = None
+    rightPoint = list()
+    leftPoint = list()
     leftFile = None
     rightFile = None
     rightTri = None
@@ -252,15 +252,18 @@ class MorphingAPP(QMainWindow, Ui_MainWindow):
                     self.tmpLDotPic = pixmap
                 else:
                     self.tmpRDotPic = pixmap
-            if newPoint != None:
-                painter.setPen(QPen(QtCore.Qt.blue, 5))
-                painter.setBrush(QtCore.Qt.blue)
-                for n in newPoint:
-                    painter.drawEllipse(QPointF(n[0], n[1]), 10, 10)
-                if point == self.leftPoint:
-                    self.leftDot = pixmap
-                if point == self.rightPoint:
-                    self.rightDot = pixmap
+            del painter
+        if newPoint != None:
+            painter = QPainter(pixmap)
+            painter.drawPixmap(pixmap.rect(), pixmap)
+            painter.setPen(QPen(QtCore.Qt.blue, 5))
+            painter.setBrush(QtCore.Qt.blue)
+            for n in newPoint:
+                painter.drawEllipse(QPointF(n[0], n[1]), 10, 10)
+            if point == self.leftPoint:
+                self.leftDot = pixmap
+            if point == self.rightPoint:
+                self.rightDot = pixmap
             del painter
         if (tmpPoint == None) & (newPoint == None):
             if point == self.leftPoint:
